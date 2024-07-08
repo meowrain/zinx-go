@@ -48,11 +48,11 @@ func (conn *Connection) StartReader() {
 		//从路由中找到注册绑定的connection对应的router
 		//得到当前conn数据的Request请求数据
 		req := &Request{conn: conn, data: buf}
-		go func(req ziface.IRequest) {
-			conn.Router.PreHandler(&req)
-			conn.Router.Handler(&req)
-			conn.Router.PostHandler(&req)
-		}(req)
+		go func() {
+			conn.Router.PreHandler(req)
+			conn.Router.Handler(req)
+			conn.Router.PostHandler(req)
+		}()
 		// if err = conn.handleAPI(conn.Conn, buf, n); err != nil {
 		// 	logrus.Errorln("connID =", conn.GetConnID(), "HandleAPI Error:", err)
 		// 	conn.ExitChan <- true

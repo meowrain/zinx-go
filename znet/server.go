@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"zinx/ziface"
+	"zinx/zutils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -79,6 +80,8 @@ func NewServer(name string) ziface.IServer {
 		Port:      8080,
 		Router:    nil,
 	}
+	zutils.GlobalObject.TcpServer = s
+	logrus.Infoln("Loaded GlobalObject:", zutils.GlobalObject)
 	return s
 
 }

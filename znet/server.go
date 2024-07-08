@@ -2,7 +2,6 @@ package znet
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"zinx/ziface"
 
@@ -11,10 +10,11 @@ import (
 
 // IServer接口实现
 type Server struct {
-	Name      string //服务器名称
-	IP        string //服务器绑定的ip地址
-	IPVersion string //服务器绑定的ip版本
-	Port      int    //服务器绑定的端口
+	Name      string         //服务器名称
+	IP        string         //服务器绑定的ip地址
+	IPVersion string         //服务器绑定的ip版本
+	Port      int            //服务器绑定的端口
+	Router    ziface.IRouter // 该链接处理的方法Router
 }
 
 func init() {
@@ -29,6 +29,7 @@ func init() {
 	// 设置logrus日志级别
 	logrus.SetLevel(logrus.InfoLevel)
 }
+
 func (server *Server) Start() {
 	//TODO: 启动服务
 	tcpAddr, err := net.ResolveTCPAddr(server.IPVersion, fmt.Sprintf("%s:%d", server.IP, server.Port))
@@ -42,39 +43,17 @@ func (server *Server) Start() {
 		return
 	}
 	logrus.Infof("Start zinx successfully!,server is running at %s:%d", server.IP, server.Port)
+	var cid uint32 = 0
+
 	for {
 		conn, err := listener.AcceptTCP()
 		if err != nil {
 			logrus.Errorln("Accept failed, err:", err)
-			continue
+			return
 		}
-		go func() {
-			// 关闭连接
-			defer conn.Close()
-			//TODO: 业务处理
-			logrus.Infoln("Accept a new connection from", conn.RemoteAddr())
-			buf := make([]byte, 1024)
-			for {
-				n, err := conn.Read(buf)
-				if err != nil {
-					if err == io.EOF {
-						// 连接正常关闭，不是错误
-						logrus.Infoln("Connection closed by client")
-						break
-					}
-					// 读取过程中遇到其他错误
-					logrus.Errorln("Read failed, err:", err)
-					break
-				}
-				logrus.Infoln("Read", n, "bytes from", conn.RemoteAddr())
-				fmt.Println("recv:", string(buf[:n]))
-				// 发送数据
-				if _, err = conn.Write(buf[:n]); err != nil {
-					logrus.Errorln("Write failed, err:", err)
-				}
-				logrus.Infoln("Write to", conn.RemoteAddr(), "success")
-			}
-		}()
+		dealConn := NewConnection(conn, cid, server.Router) //*Connection
+		go dealConn.Open()
+		cid++
 	}
 }
 func (server *Server) Stop() {
@@ -88,12 +67,17 @@ func (server *Server) Serve() {
 	select {}
 
 }
+func (server *Server) AddRoute(router ziface.IRouter) {
+	server.Router = router
+	logrus.Infoln("AddRoute successfully!")
+}
 func NewServer(name string) ziface.IServer {
 	s := &Server{
 		Name:      name,
 		IPVersion: "tcp4",
 		IP:        "0.0.0.0",
 		Port:      8080,
+		Router:    nil,
 	}
 	return s
 

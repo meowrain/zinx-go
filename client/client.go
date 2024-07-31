@@ -4,45 +4,60 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
+
+	"zinx/znet"
 )
 
 func main() {
+	datapack := znet.NewDataPack()
+	msg1 := new(znet.Message)
+	msg2 := new(znet.Message)
+	str1 := "helloworld,meowrain1"
+	str2 := "helloworld,meowrain2"
+	msg1.SetMessageLen(uint32(len(str1)))
+	msg1.SetMessageId(1)
+	msg1.SetData([]byte(str1))
+	msg2.SetMessageLen(uint32(len(str2)))
+	msg2.SetMessageId(2)
+	msg2.SetData([]byte(str2))
+
+	pack1, err := datapack.Pack(msg1)
+	if err != nil {
+		log.Fatalf("Failed to pack message: %v", err)
+	}
+	pack2, err := datapack.Pack(msg2)
+	if err != nil {
+		log.Fatalf("Failed to pack message: %v", err)
+	}
+	pack := append(pack1, pack2...)
+	if err != nil {
+		log.Fatalf("Failed to pack message: %v", err)
+	}
+
 	conn, err := net.Dial("tcp4", "127.0.0.1:8080")
 	if err != nil {
 		log.Fatalf("Failed to connect to server: %v", err)
 	}
 	defer conn.Close()
 
-	message := "hi there"
-	for {
-		err = sendMessage(conn, message)
-		if err != nil {
-			log.Fatalf("Failed to send message: %v", err)
-		}
-		response, err := readMessage(conn)
-		if err != nil {
-			log.Fatalf("Failed to read response: %v", err)
-		}
-		fmt.Println("Received response:", response)
-		time.Sleep(time.Second)
-	}
-
-}
-
-func sendMessage(conn net.Conn, message string) error {
-	_, err := conn.Write([]byte(message))
+	_, err = conn.Write(pack)
 	if err != nil {
-		return fmt.Errorf("failed to send message: %v", err)
+		log.Fatalf("Failed to send message: %v", err)
 	}
-	return nil
+
+	// 读取服务器的响应
+	response, err := readResponse(conn)
+	if err != nil {
+		log.Fatalf("Failed to read response: %v", err)
+	}
+	fmt.Println("Received response:", string(response))
 }
 
-func readMessage(conn net.Conn) (string, error) {
+func readResponse(conn net.Conn) ([]byte, error) {
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %v", err)
+		return nil, fmt.Errorf("failed to read response: %v", err)
 	}
-	return string(buf[:n]), nil
+	return buf[:n], nil
 }
